@@ -12,7 +12,13 @@
         }
         h1 { color: #555; }
         #input-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
             margin-bottom: 20px;
+        }
+        label {
+            margin-right: 10px;
         }
         input[type="text"] { 
             padding: 10px; 
@@ -21,6 +27,24 @@
             border: 1px solid #ccc; 
             border-radius: 4px;
             box-sizing: border-box;
+        }
+        #sortButton {
+            padding: 0;
+            font-size: 24px;
+            cursor: pointer;
+            background-color: transparent;
+            color: #333;
+            border: none;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        /* Remove hover effects */
+        #sortButton:hover {
+            background-color: transparent;
+            transform: none;
         }
         #results {
             margin-top: 20px;
@@ -35,6 +59,7 @@
             display: flex;
             flex-wrap: wrap;
             gap: 10px;
+            margin-top: 10px;
         }
         .word-item {
             background-color: #fff;
@@ -49,8 +74,9 @@
 <body>
     <h1>Bomb Party Solver</h1>
     <div id="input-container">
-        <label for="chars"><strong>Enter Characters:</strong></label><br><br>
+        <label for="chars"><strong>Enter Characters:</strong></label>
         <input type="text" id="chars" name="chars" placeholder="" autocomplete="off" required>
+        <button id="sortButton" aria-label="Toggle Sort Order">🔼</button>
     </div>
     <div id="results">
         <!-- Results will be displayed here -->
@@ -60,7 +86,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             const input = document.getElementById('chars');
             const resultsDiv = document.getElementById('results');
+            const sortButton = document.getElementById('sortButton');
             let dictionary = [];
+            let isLongestFirst = false; // Initial sort order: Longest First
 
             // Auto-focus the input field
             input.focus();
@@ -85,29 +113,43 @@
                     resultsDiv.innerHTML = '<p class="no-results">Failed to load dictionary.</p>';
                 });
 
-            // Function to filter and sort words based on substring matching
+            // Function to filter words based on substring matching
             const findMatchingWords = (inputChars) => {
                 if (inputChars.length === 0) return [];
-                return dictionary.filter(word => word.includes(inputChars))
-                                 .sort((a, b) => a.length - b.length);
+                return dictionary.filter(word => word.includes(inputChars));
+            };
+
+            // Function to sort words based on current sort order
+            const sortWords = (words) => {
+                return words.sort((a, b) => {
+                    return isLongestFirst ? b.length - a.length : a.length - b.length;
+                });
             };
 
             // Function to render results
             const renderResults = (words) => {
                 if (words.length > 0) {
+                    const sortedWords = sortWords([...words]); // Clone the array to avoid in-place sorting issues
+
+                    // Create Header
                     const header = document.createElement('h2');
-                    header.textContent = `Matching Words (${words.length})`;
+                    header.textContent = `Matching Words (${sortedWords.length})`;
+
+                    // Create Word List
                     const wordList = document.createElement('div');
                     wordList.className = 'word-list';
                     
-                    words.forEach(word => {
+                    sortedWords.forEach(word => {
                         const wordItem = document.createElement('div');
                         wordItem.className = 'word-item';
                         wordItem.textContent = word;
                         wordList.appendChild(wordItem);
                     });
                     
-                    resultsDiv.innerHTML = ''; // Clear previous results
+                    // Clear previous results
+                    resultsDiv.innerHTML = '';
+                    
+                    // Append Header and Word List
                     resultsDiv.appendChild(header);
                     resultsDiv.appendChild(wordList);
                 } else {
@@ -126,8 +168,8 @@
                 };
             };
 
-            // Event listener for input changes
-            input.addEventListener('input', debounce(() => {
+            // Function to handle input changes
+            const handleInput = () => {
                 const query = input.value.trim().toLowerCase();
                 if (query === '') {
                     resultsDiv.innerHTML = ''; // Clear results if input is empty
@@ -135,7 +177,25 @@
                 }
                 const matches = findMatchingWords(query);
                 renderResults(matches);
-            }, 300)); // Adjust the delay as needed (300ms)
+            };
+
+            // Event listener for input changes
+            input.addEventListener('input', debounce(handleInput, 300)); // Adjust the delay as needed (300ms)
+
+            // Event listener for Sort Button
+            sortButton.addEventListener('click', () => {
+                isLongestFirst = !isLongestFirst; // Toggle sort order
+                const currentQuery = input.value.trim().toLowerCase();
+                if (currentQuery === '') {
+                    // If input is empty, just update the button emoji
+                    sortButton.textContent = isLongestFirst ? '🔼' : '🔽';
+                    return;
+                }
+                const matches = findMatchingWords(currentQuery);
+                renderResults(matches);
+                // Update button emoji based on the new sort order
+                sortButton.textContent = isLongestFirst ? '🔽' : '🔼';
+            });
 
             // Event listener for keydown to handle ESC key
             document.addEventListener('keydown', (event) => {
